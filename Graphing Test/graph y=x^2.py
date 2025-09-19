@@ -11,4 +11,5 @@ for i in range(0,11):
 
 plt.plot(xData, yData)
 plt.show()
-#go to main repo?
+
+#Code to plot y = x^2
