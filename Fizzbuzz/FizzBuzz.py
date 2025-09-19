@@ -8,6 +8,4 @@ for i in range(1, 100):
     elif i % 3 ==0:
         print(i)
         print("fizz") 
-#this is a test comment!
-#this is a staged test comment?
-#pls appear in github?
+#this should appear in main repo
