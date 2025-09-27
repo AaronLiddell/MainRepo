@@ -1,5 +1,5 @@
 import math as m
-from test import hypo
+from hypoFunc import hypo
 
 def getData():
     x = int(input("Input side one of triangle: "))
