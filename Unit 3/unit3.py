@@ -4,14 +4,18 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy import constants
 
 def main():
-    demoCosmology() #to test the functions in the Cosmology class
-    graphVaryZ()
-    graphVaryOmegaM()
-    graphSetOmegaM()
-    printCosmo()
-    #c = Cosmology(H0, Omega_m, Omega_lambda)   not sure what this is here for tbh
+    
+    integrand = demoCosmology() #to test the functions in the Cosmology class
+
+    #c = Cosmology(H0, Omega_m, Omega_lambda)
+    #graphVaryZ()
+    #graphVaryOmegaM()
+    #graphSetOmegaM()
+    #printCosmo()
+    
 
 class Cosmology:
     def __init__(self,H0,Omega_m,Omega_lambda):         #__init__ is used to initalise variables when a new instance of the class is created
@@ -48,16 +52,46 @@ class Cosmology:
     
     def __str__(self):
         return (f"Cosmology with H0 = {self.H0}, Omega_m = {self.Omega_m}, Omega_lambda = {self.Omega_lambda}, Omega_k = {self.Omega_k}")
+    
+    def rectangle(self, n, z):
+        delta_x = z/n
+        integral = 0
+        
+        for i in range(n):
+            xi = i*delta_x
+            integral += self.computeIntegrand(xi)
+
+        integral = delta_x * integral
+        distance = integral *((constants.speed_of_light/1000) / self.H0)
+        print("distance", distance) #in units Mpc
+
+    def trap(self, n, z):
+        delta_x = z/(n-1)
+        integral = 0
+
+        for i in range(n-1):
+            xi = i*delta_x
+            integral += self.computeIntegrand(xi)
+            
+        
+        
+
 
 def demoCosmology():
-    cosmo = Cosmology(70, 0.3, 0.7)
-    print(cosmo)
-
-    integrand = cosmo.computeIntegrand(2)
-    print("The result of the integrand is: ",integrand)
+    cosmo = Cosmology(72, 0.3, 0.7)
+    z = 1
+    
+    """print(cosmo)
 
     omegaK = cosmo.univFlat()
-    print("Omega k is: ",omegaK)
+    print("Omega k is: ",omegaK)"""
+
+    #integrand = cosmo.computeIntegrand(z)
+    #print("The result of the integrand is: ",integrand)
+
+    cosmo.rectangle(10000, z)
+    cosmo.trap(10000,z)
+
 
 def graphVaryZ():
     cosmo = Cosmology(70, 0.3, 0.7)
