@@ -5,10 +5,15 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import constants
+from scipy.interpolate import interp1d
+
 
 def main():
-    
-    integrand = demoCosmology() #to test the functions in the Cosmology class
+    cosmo = Cosmology(72, 0.3, 0.7)
+    z = 1
+
+    integrand = demoCosmology(cosmo, z) #to test the functions in the Cosmology class
+    graphDistanceError(cosmo, z)
 
     #c = Cosmology(H0, Omega_m, Omega_lambda)
     #graphVaryZ()
@@ -63,23 +68,82 @@ class Cosmology:
 
         integral = delta_x * integral
         distance = integral *((constants.speed_of_light/1000) / self.H0)
-        print("distance", distance) #in units Mpc
+        #print("distance with rectangle:", distance) #in units Mpc
+        
+        return distance
 
-    def trap(self, n, z):
+    def trapezoid(self, n, z):
         delta_x = z/(n-1)
         integral = 0
 
-        for i in range(n-1):
+        for i in range(1, n-1):
             xi = i*delta_x
             integral += self.computeIntegrand(xi)
-            
-        
-        
+        integral = 2*integral
 
+        x0 = 0
+        xn_minus_one = (n-1)*delta_x
+        fx0 = self.computeIntegrand(x0)
+        fxn_minus_one = self.computeIntegrand(xn_minus_one)
 
-def demoCosmology():
-    cosmo = Cosmology(72, 0.3, 0.7)
-    z = 1
+        integral = fx0 + integral + fxn_minus_one
+        integral = (delta_x/2)*integral
+
+        distance = integral *((constants.speed_of_light/1000) / self.H0)
+        #print("distance with trapezoid:",distance) #in units Mpc
+        
+        return distance
+
+    def simpson(self, n, z):
+        delta_x = z/(2*n)
+
+        sum1 = 0
+        sum2 = 0
+
+        for i in range(n):
+            xi1 = ((2*i)+1)*delta_x
+            sum1 += self.computeIntegrand(xi1)
+
+        for i in range(1, n):
+            xi2 = (2*i)*delta_x
+            sum2 += self.computeIntegrand(xi2)
+
+        x0 = 0
+        x2n = 2*n*delta_x
+        fx0 = self.computeIntegrand(x0)
+        fx2n = self.computeIntegrand(x2n)
+
+        integral = (delta_x/3)*(fx0 + (4*sum1) + (2*sum2) + fx2n)
+
+        distance = integral *((constants.speed_of_light/1000) / self.H0)
+        #print("distance with Simpsons:",distance) #in units Mpc
+
+        return distance
+    
+    def cumulative(self, n, z):
+        delta_x = z/(n-1)
+        z_range = np.linspace(0, z, num=n)
+        distances = np.zeros(n)
+
+        prev_f = self.computeIntegrand(z_range[0])
+
+        for i in range(1, n):
+            curr_f = self.computeIntegrand(z_range[i])
+            distances[i] = distances[i-1] + 0.5 * delta_x * (curr_f + prev_f)
+            prev_f = curr_f
+
+        plt.plot(z_range, distances, label="distances against redshift values")
+        plt.xlabel("Redshift")
+        plt.ylabel("Distances")
+        plt.show()
+
+def interpolate(z_array):
+    zmax = np.max(z_array)
+
+    
+
+def demoCosmology(cosmo, z):
+    no_of_points = 1000
     
     """print(cosmo)
 
@@ -89,8 +153,59 @@ def demoCosmology():
     #integrand = cosmo.computeIntegrand(z)
     #print("The result of the integrand is: ",integrand)
 
-    cosmo.rectangle(10000, z)
-    cosmo.trap(10000,z)
+    cosmo.rectangle(no_of_points, z)
+    cosmo.trapezoid(no_of_points,z)
+    cosmo.simpson(no_of_points, z)
+
+    cosmo.cumulative(no_of_points, z)
+
+
+def graphDistanceError(cosmo, z):
+
+    step_values = [10, 50, 100, 500, 1000, 5000]
+    #np.logspace to get more values
+
+    #get a reference "true" value
+    true_distance = cosmo.simpson(100000, z)
+
+    rect_errors = []
+    rect_evals = []
+    trap_errors = []
+    trap_evals = []
+    simp_errors = []
+    simp_evals = []
+
+    for n in step_values:
+        dist = cosmo.rectangle(n, z)
+        rect_errors.append(abs(dist - true_distance) / abs(true_distance))
+        rect_evals.append(n)
+
+    for n in step_values:
+        dist = cosmo.trapezoid(n, z)
+        trap_errors.append(abs(dist - true_distance) / abs(true_distance))
+        trap_evals.append(n+1)
+
+    for n in step_values:
+        dist = cosmo.simpson(n, z)
+        simp_errors.append(abs(dist - true_distance) / abs(true_distance))
+        simp_evals.append(2*n+1)
+
+    target_accuracy = 0.001   # 10% fractional error
+
+
+    #plotting
+    plt.loglog(rect_evals, rect_errors, "o-", label="Rectangle")
+    plt.loglog(trap_evals, trap_errors, "o-", label="Trapezoid")
+    plt.loglog(simp_evals, simp_errors, "o-", label="Simpson")
+
+    plt.axhline(y=target_accuracy, color="r", linestyle="--", linewidth=2, label="Target error")
+
+    plt.xlabel("Number of evaluations")
+    plt.ylabel("Absolute fractional error")
+    plt.legend()
+    plt.show()
+
+
 
 
 def graphVaryZ():
