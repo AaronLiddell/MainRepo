@@ -14,14 +14,15 @@ def main():
     cosmo = Cosmology(72, 0.3, 0.7)
     no_of_points = 1000
     z = 1
-    z_array = [0.0243, 0.385, 0.4762, 0.8745, 0.537, 0.048, 0.892, 0.9542]
+    #z_array = [0.0243, 0.385, 0.4762, 0.8745, 0.537, 0.048, 0.892, 0.9542]
+    z_array = np.linspace(0, 1, 100)
 
     integrand = demoCosmology(cosmo, z, no_of_points) #to test the functions in the Cosmology class
-    #graphDistanceError(cosmo, z)
+    graphDistanceError(cosmo, z)
     #graphCumulative(cosmo, z, no_of_points)
     interpolate(cosmo, z_array, no_of_points)
     distance_mod, z_array = distanceModuli(cosmo, z_array, no_of_points)
-    graphDistanceModulus(distance_mod, z_array, no_of_points)
+    graphDistanceModulus(z_array, no_of_points)
 
     #c = Cosmology(H0, Omega_m, Omega_lambda)
     #graphVaryZ()
@@ -69,7 +70,6 @@ class Cosmology:
     def rectangle(self, n, z):
         delta_x = z/n
         integral = 0
-        
         for i in range(n):
             xi = i*delta_x
             integral += self.computeIntegrand(xi)
@@ -139,6 +139,7 @@ class Cosmology:
             curr_f = self.computeIntegrand(z_range[i])
             distances[i] = distances[i-1] + 0.5 * delta_x * (curr_f + prev_f)
             prev_f = curr_f
+        distances *= (c / 1000) / self.H0
 
         return z_range, distances
     
@@ -148,7 +149,8 @@ def graphCumulative(cosmo, z, n):
 
     plt.plot(z_range, distances, label="distances against redshift values")
     plt.xlabel("Redshift")
-    plt.ylabel("Distances")
+    plt.ylabel("Distance (Mpc)")
+    plt.title("Cumulative Trapezoid Distance against Redshift")
     plt.show()
 
 def interpolate(cosmo, array, n):
@@ -165,39 +167,44 @@ def distanceModuli(cosmo, z_array, n):
 
     interp_array = interpolate(cosmo, z_array, n)
     
-    for zi in range(len(z_array)):
+    for i, zi in enumerate(z_array):
+        
 
-
-        x = m.sqrt(abs(cosmo.Omega_k)) * (cosmo.H0 * cosmo.simpson(n,zi))/c
+        x = m.sqrt(abs(cosmo.Omega_k)) * (cosmo.H0 * interp_array[i])/c
 
         if cosmo.Omega_k > 0:
             S = m.sinh(x)
-            Dl = (1 + zi) * ((c/1000)/cosmo.H0) * (1/m.sqrt(cosmo.Omega_k)) * S
+            Dl = (1 + zi) * ((c/1000)/cosmo.H0) * (1 / m.sqrt(abs(cosmo.Omega_k))) * S
 
         elif cosmo.Omega_k == 0:
-            Dl = (1+zi) * interp_array[zi]
+            D_C = interp_array[i] * ((c / 1000) / cosmo.H0)
+            Dl = (1+zi) * D_C
 
         else:
             S = m.sin(x)
-            Dl = (1 + zi) * ((c/1000)/cosmo.H0) * (1/m.sqrt(cosmo.Omega_k)) * S
+            Dl = (1 + zi) * ((c/1000) / cosmo.H0) * (1 / m.sqrt(abs(cosmo.Omega_k))) * S
         
-        mu = (5*np.log10(Dl)) + 25
+        #handles the case where Dl may have been 0 or negative causing a divide by 0 error
+        if Dl > 0:
+            mu = (5*np.log10(Dl)) + 25
+        else:
+            mu = np.nan
+
         distance_mod.append(mu)
-    
+
+
     return distance_mod, z_array
 
-def graphDistanceModulus(distance_mod, z_array, n):
+def graphDistanceModulus(z_array, n):
+
+    idx = np.argsort(z_array)
+    z_sorted = [z_array[i] for i in idx]
 
     #varying H0
     H0_values = [70, 72, 74]
     Omega_m = 0.3
     Omega_lambda = 0.7
 
-    idx = np.argsort(z_array)
-    print(idx)
-    z_sorted = [z_array[i] for i in idx]
-    print(z_sorted)
-    
     for H0_val in H0_values:
         cosmoH0 = Cosmology(H0_val, Omega_m, Omega_lambda)
         mu_array, z_array = distanceModuli(cosmoH0, z_sorted, n)
@@ -206,10 +213,45 @@ def graphDistanceModulus(distance_mod, z_array, n):
     
     plt.xlabel("Redshift")
     plt.ylabel("Distance Modulus")
-    plt.title("Varying H0")
+    plt.title("Distance against Redshift for varying H0")
     plt.legend()
     plt.show()
 
+
+    #varying omega m
+    H0 = 72
+    Omega_m_values = [0.2, 0.3, 0.4]
+    Omega_lambda = 0.7
+
+    for m_val in Omega_m_values:
+        cosmoM = Cosmology(H0, m_val, (1 - m_val))
+        mu_array, z_array = distanceModuli(cosmoM, z_sorted, n)
+
+        plt.plot(z_sorted, mu_array, label = f"Omega m = {m_val} ")
+    
+    plt.xlabel("Redshift")
+    plt.ylabel("Distance Modulus")
+    plt.title("Distance against Redshift for varying Omega m")
+    plt.legend()
+    plt.show()
+
+
+    #varying omega lambda
+    H0 = 72
+    Omega_m = 0.3
+    Omega_lambda_values = [0.6, 0.7, 0.8]
+
+    for l_val in Omega_lambda_values:
+        cosmoL = Cosmology(H0, (1-l_val), l_val)
+        mu_array, z_array = distanceModuli(cosmoL, z_sorted, n)
+
+        plt.plot(z_sorted, mu_array, label = f"Omega lambda = {l_val} ")
+
+    plt.xlabel("Redshift")
+    plt.ylabel("Distance Modulus")
+    plt.title("Distance against Redshift for varying Omega lambda")
+    plt.legend()
+    plt.show()
 
 
 def demoCosmology(cosmo, z, no_of_points):
@@ -232,8 +274,7 @@ def demoCosmology(cosmo, z, no_of_points):
 
 def graphDistanceError(cosmo, z):
 
-    step_values = [10, 50, 100, 500, 1000, 5000]
-    #np.logspace to get more values
+    step_values = [10, 50, 100, 500, 1000, 5000, 10000]
 
     #get a reference "true" value
     true_distance = cosmo.simpson(100000, z)
@@ -260,7 +301,7 @@ def graphDistanceError(cosmo, z):
         simp_errors.append(abs(dist - true_distance) / abs(true_distance))
         simp_evals.append(2*n+1)
 
-    target_accuracy = 0.001   # 10% fractional error
+    target_accuracy = 0.001
 
 
     #plotting
